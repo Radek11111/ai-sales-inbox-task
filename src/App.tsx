@@ -211,6 +211,10 @@ function DetailPage({ messageId }: { messageId: string }) {
 function PipelinePage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [errorByLeadId, setErrorByLeadId] = useState<Record<string, string>>(
+    {},
+  );
 
   useEffect(() => {
     let active = true;
@@ -227,6 +231,29 @@ function PipelinePage() {
       active = false;
     };
   }, []);
+
+  async function handleMarkContacted(leadId: string) {
+    setSavingId(leadId);
+    setErrorByLeadId((prev) => {
+      const next = { ...prev };
+      delete next[leadId];
+      return next;
+    });
+    try {
+      const updated = await api.markContacted(leadId);
+      setLeads((prev) =>
+        prev.map((lead) => (lead.id === leadId ? updated : lead)),
+      );
+    } catch (error) {
+      setErrorByLeadId((prev) => ({
+        ...prev,
+        [leadId]:
+          error instanceof Error ? error.message : "Could not update the lead.",
+      }));
+    } finally {
+      setSavingId(null);
+    }
+  }
 
   return (
     <main className="page-container">
@@ -255,7 +282,13 @@ function PipelinePage() {
           ) : (
             <ul className="lead-list">
               {leads.map((lead) => (
-                <LeadCard key={lead.id} lead={lead} />
+                <LeadCard
+                  key={lead.id}
+                  lead={lead}
+                  isSaving={savingId === lead.id}
+                  error={errorByLeadId[lead.id]}
+                  onMarkContacted={() => handleMarkContacted(lead.id)}
+                />
               ))}
             </ul>
           ))}
@@ -264,7 +297,17 @@ function PipelinePage() {
   );
 }
 
-function LeadCard({ lead }: { lead: Lead }) {
+function LeadCard({
+  lead,
+  isSaving,
+  error,
+  onMarkContacted,
+}: {
+  lead: Lead;
+  isSaving: boolean;
+  error?: string;
+  onMarkContacted?: () => void;
+}) {
   return (
     <li className="lead-card">
       <div>
@@ -277,7 +320,23 @@ function LeadCard({ lead }: { lead: Lead }) {
           {lead.status} ·{" "}
           {lead.budget === null ? "Budget unknown" : `${lead.budget}`}
         </span>
+        {error && (
+          <p role="alert" className="state-message form-error">
+            {" "}
+            {error}
+          </p>
+        )}
       </div>
+      {lead.status === "NEW" && (
+        <button
+          type="button"
+          className="btn"
+          onClick={onMarkContacted}
+          disabled={isSaving}
+        >
+          {isSaving ? "Updating…" : "Mark as contacted"}
+        </button>
+      )}
     </li>
   );
 }
