@@ -321,7 +321,7 @@ function LeadCard({
           {lead.budget === null ? "Budget unknown" : `${lead.budget}`}
         </span>
         {error && (
-          <p role="alert" className="state-message form-error">
+          <p role="alert" className="form-message form-message-error">
             {" "}
             {error}
           </p>
@@ -458,7 +458,7 @@ function LeadForm({ messageId }: { messageId: string }) {
       </div>
 
       {extractError && (
-        <p role="alert" className="state-message form-error">
+        <p role="alert" className="form-message form-message-error">
           {extractError}
         </p>
       )}
@@ -505,12 +505,14 @@ function LeadForm({ messageId }: { messageId: string }) {
       </div>
 
       {saveError && (
-        <p role="alert" className="state-message form-error">
+        <p role="alert" className="form-message form-message-error">
           {saveError}
         </p>
       )}
       {saveStatus === "success" && (
-        <p role="status">Lead saved. Check the pipeline.</p>
+        <p role="status" className="form-message-success">
+          Lead saved. Check the pipeline.
+        </p>
       )}
 
       <button type="submit" disabled={saveStatus === "saving"} className="btn">

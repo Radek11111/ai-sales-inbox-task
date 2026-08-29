@@ -390,8 +390,22 @@ h3 {
   color: #849087;
 }
 
-.state-message.form-error {
+.form-message {
+  text-align: center;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  margin: 0 0 16px;
+  padding: 10px 14px;
+}
+.form-message-error {
+  background: #fdeeee;
+  border: 1px solid #f3c9c9;
   color: #a3312c;
+}
+.form-message-success {
+  background: #eaf7f1;
+  border: 1px solid #bfe8d5;
+  color: #0c8f71;
 }
 
 .lead-form > .btn[type="submit"] {
