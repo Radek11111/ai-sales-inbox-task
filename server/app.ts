@@ -9,7 +9,6 @@ import { extractForMessage, extractRequestSchema } from "./ai.js";
 import { prisma } from "./db.js";
 import { createLeadSchema, updateLeadStatusSchema } from "./leads.js";
 import { randomUUID } from "node:crypto";
-import { request } from "node:http";
 import { z } from "zod";
 
 const app = express();
@@ -124,12 +123,10 @@ app.post("/api/ai/extract", async (request, response, next) => {
   try {
     const parsed = extractRequestSchema.safeParse(request.body);
     if (!parsed.success) {
-      response
-        .status(400)
-        .json({
-          error: "invalid_request",
-          details: z.flattenError(parsed.error),
-        });
+      response.status(400).json({
+        error: "invalid_request",
+        details: z.flattenError(parsed.error),
+      });
       return;
     }
 
@@ -214,6 +211,7 @@ app.patch("/api/leads/:leadId/status", async (request, response, next) => {
 
     if (result.count === 0) {
       response.status(400).json({ error: "invalid_transition" });
+      return;
     }
 
     const lead = await prisma.lead.findUnique({
