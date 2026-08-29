@@ -1,7 +1,6 @@
-import { Extraction } from "../server/ai";
 import type { Lead, Message } from "./types";
 
-type Extraxtion = {
+type Extraction = {
   product?: string;
   quantity?: number | null;
   material?: string | null;
