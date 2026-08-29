@@ -11,5 +11,5 @@ export const createLeadSchema = z
   .strict();
 
 export const updateLeadStatusSchema = z
-  .object({ status: z.literal("CONTRACTED") })
+  .object({ status: z.literal("CONTACTED") })
   .strict();

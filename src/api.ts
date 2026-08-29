@@ -46,7 +46,7 @@ export const api = {
     fetch(`/api/leads/${encodeURIComponent(leadId)}/status`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "CONTRACTED" }),
+      body: JSON.stringify({ status: "CONTACTED" }),
     }).then(async (response) => {
       if (!response.ok) {
         const payload = await response.json().catch(() => null);

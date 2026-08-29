@@ -209,7 +209,7 @@ app.patch("/api/leads/:leadId/status", async (request, response, next) => {
 
     const result = await prisma.lead.updateMany({
       where: { id: request.params.leadId, status: "NEW" },
-      data: { status: "CONTRACTED" },
+      data: { status: "CONTACTED" },
     });
 
     if (result.count === 0) {
