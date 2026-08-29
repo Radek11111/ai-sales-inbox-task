@@ -1,29 +1,55 @@
-import express, { type NextFunction, type Request, type Response } from "express";
+import express, {
+  type NextFunction,
+  type Request,
+  type Response,
+} from "express";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { extractForMessage, extractRequestSchema } from "./ai.js";
 import { prisma } from "./db.js";
+import { createLeadSchema, updateLeadStatusSchema } from "./leads.js";
+import { randomUUID } from "node:crypto";
+import { request } from "node:http";
+import { z } from "zod";
 
 const app = express();
-const clientDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "client");
+const clientDir = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "client",
+);
 
 app.use(express.json());
 
-app.use((error: unknown, request: Request, response: Response, next: NextFunction) => {
-  if (
-    request.path.startsWith("/api/") &&
-    error &&
-    typeof error === "object" &&
-    "type" in error &&
-    error.type === "entity.parse.failed"
-  ) {
-    response.status(400).json({ error: "invalid_json" });
-    return;
-  }
-  next(error);
-});
+app.use(
+  (
+    error: unknown,
+    request: Request,
+    response: Response,
+    next: NextFunction,
+  ) => {
+    if (
+      request.path.startsWith("/api/") &&
+      error &&
+      typeof error === "object" &&
+      "type" in error &&
+      error.type === "entity.parse.failed"
+    ) {
+      response.status(400).json({ error: "invalid_json" });
+      return;
+    }
+    next(error);
+  },
+);
 
-function serializeMessage(message: { id: string; senderName: string; senderEmail: string; company: string; subject: string; body: string; createdAt: Date }) {
+function serializeMessage(message: {
+  id: string;
+  senderName: string;
+  senderEmail: string;
+  company: string;
+  subject: string;
+  body: string;
+  createdAt: Date;
+}) {
   return {
     id: message.id,
     senderName: message.senderName,
@@ -35,7 +61,11 @@ function serializeMessage(message: { id: string; senderName: string; senderEmail
   };
 }
 
-async function handleMessages(_request: Request, response: Response, next: NextFunction) {
+async function handleMessages(
+  _request: Request,
+  response: Response,
+  next: NextFunction,
+) {
   try {
     const records = await prisma.message.findMany({
       orderBy: { createdAt: "desc" },
@@ -47,10 +77,25 @@ async function handleMessages(_request: Request, response: Response, next: NextF
   }
 }
 
+function serializeLead(lead: {
+  id: string;
+  sourceMessageId: string;
+  product: string;
+  quantity: number;
+  material: string | null;
+  budget: number | null;
+  status: string;
+  createdAt: Date;
+}) {
+  return { ...lead, createdAt: lead.createdAt.toISOString() };
+}
+
 app.get("/api/messages", handleMessages);
 app.get("/api/messages/:messageId", async (request, response, next) => {
   try {
-    const record = await prisma.message.findUnique({ where: { id: request.params.messageId } });
+    const record = await prisma.message.findUnique({
+      where: { id: request.params.messageId },
+    });
     if (!record) {
       response.status(404).json({ error: "message_not_found" });
       return;
@@ -64,7 +109,12 @@ app.get("/api/messages/:messageId", async (request, response, next) => {
 app.get("/api/leads", async (_request, response, next) => {
   try {
     const leads = await prisma.lead.findMany({ orderBy: { createdAt: "asc" } });
-    response.json(leads.map((lead) => ({ ...lead, createdAt: lead.createdAt.toISOString() })));
+    response.json(
+      leads.map((lead) => ({
+        ...lead,
+        createdAt: lead.createdAt.toISOString(),
+      })),
+    );
   } catch (error) {
     next(error);
   }
@@ -74,11 +124,18 @@ app.post("/api/ai/extract", async (request, response, next) => {
   try {
     const parsed = extractRequestSchema.safeParse(request.body);
     if (!parsed.success) {
-      response.status(400).json({ error: "invalid_request", details: parsed.error.flatten() });
+      response
+        .status(400)
+        .json({
+          error: "invalid_request",
+          details: z.flattenError(parsed.error),
+        });
       return;
     }
 
-    const message = await prisma.message.findUnique({ where: { id: parsed.data } });
+    const message = await prisma.message.findUnique({
+      where: { id: parsed.data },
+    });
     if (!message) {
       response.status(404).json({ error: "message_not_found" });
       return;
@@ -100,6 +157,74 @@ app.post("/api/ai/extract", async (request, response, next) => {
   }
 });
 
+app.post("/api/leads", async (request, response, next) => {
+  try {
+    const parsed = createLeadSchema.safeParse(request.body);
+    if (!parsed.success) {
+      response.status(400).json({
+        error: "invalid_request",
+        details: z.flattenError(parsed.error),
+      });
+      return;
+    }
+    const { sourceMessageId, product, quantity, material, budget } =
+      parsed.data;
+
+    const message = await prisma.message.findUnique({
+      where: { id: sourceMessageId },
+    });
+    if (!message) {
+      response.status(404).json({ error: "source_message_not_found" });
+      return;
+    }
+
+    const lead = await prisma.lead.create({
+      data: {
+        id: randomUUID(),
+        sourceMessageId,
+        product,
+        quantity,
+        material: material ?? null,
+        budget: budget ?? null,
+        status: "NEW",
+      },
+    });
+
+    response.status(201).json(serializeLead(lead));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.patch("/api/leads/:leadId/status", async (request, response, next) => {
+  try {
+    const parsed = updateLeadStatusSchema.safeParse(request.body);
+    if (!parsed.success) {
+      response.status(400).json({
+        error: "invalid_request",
+        details: z.flattenError(parsed.error),
+      });
+      return;
+    }
+
+    const result = await prisma.lead.updateMany({
+      where: { id: request.params.leadId, status: "NEW" },
+      data: { status: "CONTRACTED" },
+    });
+
+    if (result.count === 0) {
+      response.status(400).json({ error: "invalid_transition" });
+    }
+
+    const lead = await prisma.lead.findUnique({
+      where: { id: request.params.leadId },
+    });
+    response.json(serializeLead(lead!));
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.use(express.static(clientDir));
 
 app.use((request, response, next) => {
@@ -107,12 +232,21 @@ app.use((request, response, next) => {
     response.status(404).json({ error: "not_found" });
     return;
   }
-  response.sendFile(path.join(clientDir, "index.html"), (error) => (error ? next(error) : undefined));
+  response.sendFile(path.join(clientDir, "index.html"), (error) =>
+    error ? next(error) : undefined,
+  );
 });
 
-app.use((error: unknown, _request: Request, response: Response, _next: NextFunction) => {
-  console.error(error);
-  response.status(500).json({ error: "internal_server_error" });
-});
+app.use(
+  (
+    error: unknown,
+    _request: Request,
+    response: Response,
+    _next: NextFunction,
+  ) => {
+    console.error(error);
+    response.status(500).json({ error: "internal_server_error" });
+  },
+);
 
 export { app };
