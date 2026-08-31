@@ -113,7 +113,7 @@ describe("POST /api/leads", () => {
     if (response.status === 201) {
       expect(response.body.status).toBe("NEW");
     } else {
-      expect(response.status).toBeGreaterThanOrEqual(400);
+      expect(response.status).toBe(400);
       expect(response.status).toBeLessThan(500);
     }
   });
@@ -126,7 +126,7 @@ describe("POST /api/leads", () => {
       quantity: 1,
     });
 
-    expect(response.status).toBeGreaterThanOrEqual(400);
+    expect(response.status).toBe(400);
     expect(response.status).toBeLessThan(500);
     expect(await prisma.lead.count()).toBe(before);
   });
@@ -143,8 +143,8 @@ describe("POST /api/leads", () => {
       quantity: 1.5,
     });
 
-    expect(zero.status).toBeGreaterThanOrEqual(400);
-    expect(fractional.status).toBeGreaterThanOrEqual(400);
+    expect(zero.status).toBe(400);
+    expect(fractional.status).toBe(400);
   });
 
   it("accepts a missing or null material and a missing budget", async () => {
@@ -168,7 +168,7 @@ describe("POST /api/leads", () => {
       quantity: 1,
     });
 
-    expect(response.status).toBeGreaterThanOrEqual(400);
+    expect(response.status).toBe(404);
     expect(response.status).toBeLessThan(500);
     expect(await prisma.lead.count()).toBe(before);
   });
@@ -202,9 +202,7 @@ describe("PATCH /api/leads/:leadId/status", () => {
     const response = await request(app)
       .patch(`/api/leads/${created.body.id}/status`)
       .send({ status: "CONTACTED" });
-    console.log(JSON.stringify(response.body));
-    console.log("created:", created.status, JSON.stringify(created.body));
-    console.log("patch:", response.status, JSON.stringify(response.body));
+  
     expect(response.status).toBe(200);
     expect(response.body.status).toBe("CONTACTED");
   });
@@ -223,7 +221,7 @@ describe("PATCH /api/leads/:leadId/status", () => {
       .patch(`/api/leads/${created.body.id}/status`)
       .send({ status: "CONTACTED" });
 
-    expect(second.status).toBeGreaterThanOrEqual(400);
+    expect(second.status).toBe(400);
     expect(second.status).toBeLessThan(500);
   });
 
@@ -240,7 +238,7 @@ describe("PATCH /api/leads/:leadId/status", () => {
       .patch(`/api/leads/${created.body.id}/status`)
       .send({ status: "NEW" });
 
-    expect(unknown.status).toBeGreaterThanOrEqual(400);
+    expect(unknown.status).toBe(400);
     expect(unknown.status).toBeLessThan(500);
     expect(badPayload.status).toBeGreaterThanOrEqual(400);
     expect(badPayload.status).toBeLessThan(500);

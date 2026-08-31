@@ -110,13 +110,16 @@ function InboxPage() {
             Could not load the inbox. Check that the API is running.
           </StateMessage>
         )}
-        {state === "ready" && (
-          <ul className="message-list">
-            {messages.map((message) => (
-              <MessageRow key={message.id} message={message} />
-            ))}
-          </ul>
-        )}
+        {state === "ready" &&
+          (messages.length === 0 ? (
+            <p className="state-message">No messages yet</p>
+          ) : (
+            <ul className="message-list">
+              {messages.map((message) => (
+                <MessageRow key={message.id} message={message} />
+              ))}
+            </ul>
+          ))}
       </section>
     </main>
   );
